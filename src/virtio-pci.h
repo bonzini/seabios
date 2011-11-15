@@ -64,6 +64,16 @@ static inline u8 vp_get_status(unsigned int ioaddr)
    return inb(ioaddr + VIRTIO_PCI_STATUS);
 }
 
+static inline void vp_set(unsigned int ioaddr, unsigned offset,
+                     void *buf, unsigned len)
+{
+   u8 *ptr = buf;
+   unsigned i;
+
+   for (i = 0; i < len; i++)
+           outb(ioaddr + VIRTIO_PCI_CONFIG + offset + i, ptr[i]);
+}
+
 static inline void vp_set_status(unsigned int ioaddr, u8 status)
 {
    if (status == 0)        /* reset */
