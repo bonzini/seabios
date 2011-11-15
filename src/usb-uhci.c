@@ -496,6 +496,7 @@ uhci_send_bulk(struct usb_pipe *p, int dir, void *data, int datasize)
     }
 
     SET_FLATPTR(pipe->toggle, !!toggle);
+    uhci_waittick(GET_FLATPTR(pipe->iobase));
     return 0;
 fail:
     dprintf(1, "uhci_send_bulk failed\n");
