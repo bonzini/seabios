@@ -455,11 +455,8 @@ uhci_send_bulk(struct usb_pipe *p, int dir, void *data, int datasize)
     struct uhci_td *tds = (void*)ALIGN((u32)tdsbuf, TDALIGN);
     memset(tds, 0, sizeof(*tds) * STACKTDS);
 
-    // Enable tds
-    barrier();
-    SET_FLATPTR(pipe->qh.element, (u32)MAKE_FLATPTR(GET_SEG(SS), tds));
-
     int tdpos = 0;
+    struct uhci_td *start_td = tds;
     while (datasize) {
         struct uhci_td *td = &tds[tdpos++ % STACKTDS];
         int ret = wait_td(td);
@@ -479,21 +476,23 @@ uhci_send_bulk(struct usb_pipe *p, int dir, void *data, int datasize)
         barrier();
         td->status = (uhci_maxerr(3) | (lowspeed ? TD_CTRL_LS : 0)
                       | TD_CTRL_ACTIVE);
+        if (GET_FLATPTR(pipe->qh.element) & UHCI_PTR_TERM) {
+            // Enable tds.  The previous td might be the first one, since
+            // there is still a race window between reading and writing
+            // pipe->qh.element (we do not use CMPXCHG).  start_td ensures
+            // that what we write will always be linked to the first active td.
+            barrier();
+            SET_FLATPTR(pipe->qh.element, (u32)MAKE_FLATPTR(GET_SEG(SS)
+                                                            , start_td));
+        }
         toggle ^= TD_TOKEN_TOGGLE;
 
         data += transfer;
         datasize -= transfer;
+        start_td = td;
     }
-    int i;
-    for (i=0; i<STACKTDS; i++) {
-        struct uhci_td *td = &tds[tdpos++ % STACKTDS];
-        int ret = wait_td(td);
-        if (ret)
-            goto fail;
-    }
-
     SET_FLATPTR(pipe->toggle, !!toggle);
-    return 0;
+    return wait_pipe(pipe);
 fail:
     dprintf(1, "uhci_send_bulk failed\n");
     SET_FLATPTR(pipe->qh.element, UHCI_PTR_TERM);
