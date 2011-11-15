@@ -12,7 +12,7 @@
 #include "ata.h" // process_ata_op
 #include "ahci.h" // process_ahci_op
 #include "usb-msc.h" // process_usb_op
-#include "virtio-blk.h" // process_virtio_op
+#include "virtio-blk.h" // process_virtio_blk_op
 
 u8 FloppyCount VAR16VISIBLE;
 u8 CDCount;
@@ -295,8 +295,8 @@ process_op(struct disk_op_s *op)
         return process_cdemu_op(op);
     case DTYPE_USB:
         return process_usb_op(op);
-    case DTYPE_VIRTIO:
-	return process_virtio_op(op);
+    case DTYPE_VIRTIO_BLK:
+        return process_virtio_blk_op(op);
     case DTYPE_AHCI:
 	return process_ahci_op(op);
     default:
