@@ -250,7 +250,7 @@ usb_msc_init(struct usb_pipe *pipe
     dprintf(1, "USB MSC blksize=%d sectors=%d\n",
             udrive_g->drive.blksize, (int)udrive_g->drive.sectors);
 
-    if (pdt == USB_MSC_TYPE_CDROM || udrive_g->drive.blksize == CDROM_SECTOR_SIZE) {
+    if (pdt == SCSI_TYPE_CDROM || udrive_g->drive.blksize == CDROM_SECTOR_SIZE) {
         char *desc = znprintf(MAXDESCSIZE, "DVD/CD [USB Drive %s %s %s]"
                               , vendor, product, rev);
         ret = setup_drive_cdrom(&udrive_g->drive, desc);
