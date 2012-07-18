@@ -255,7 +255,7 @@ nullTrailingSpace(char *buf)
  ****************************************************************/
 
 // See if a keystroke is pending in the keyboard buffer.
-static int
+int
 check_for_keystroke(void)
 {
     struct bregs br;
@@ -274,7 +274,7 @@ get_raw_keystroke(void)
     memset(&br, 0, sizeof(br));
     br.flags = F_IF;
     call16_int(0x16, &br);
-    return br.ah;
+    return br.ax;
 }
 
 // Read a keystroke - waiting up to 'msec' milliseconds.
@@ -284,7 +284,21 @@ get_keystroke(int msec)
     u32 end = calc_future_timer(msec);
     for (;;) {
         if (check_for_keystroke())
-            return get_raw_keystroke();
+            return get_raw_keystroke() >> 8;
+        if (check_timer(end))
+            return -1;
+        yield_toirq();
+    }
+}
+
+// Read a keystroke - waiting up to 'msec' milliseconds.
+int
+get_keystroke_ascii(int msec)
+{
+    u32 end = calc_future_timer(msec);
+    for (;;) {
+        if (check_for_keystroke())
+            return get_raw_keystroke() & 255;
         if (check_timer(end))
             return -1;
         yield_toirq();

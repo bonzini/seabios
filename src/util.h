@@ -171,7 +171,9 @@ void *memmove(void *d, const void *s, size_t len);
 char *strtcpy(char *dest, const char *src, size_t len);
 char *strchr(const char *s, int c);
 void nullTrailingSpace(char *buf);
+int check_for_keystroke(void);
 int get_keystroke(int msec);
+int get_keystroke_ascii(int msec);
 
 // stacks.c
 extern u8 ExtraStack[], *StackPos;

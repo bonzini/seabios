@@ -390,6 +390,35 @@ boot_add_cbfs(void *data, const char *desc, int prio)
 
 #define DEFAULT_BOOTMENU_WAIT 2500
 
+static u8 wait_for_f12(u32 menutime)
+{
+    u64 start = get_tsc();
+    u8 esc = 0, menu = 0;
+    while (!menu && !check_tsc(start + menutime * GET_GLOBAL(cpu_khz))) {
+        if (!check_for_keystroke())
+            continue;
+
+        if (!esc) {
+            int scan_code = get_keystroke(0);
+            if (scan_code == 0x86) /* F12 */
+                menu++;
+            else if (scan_code == 1) /* ESC */
+                esc++;
+            else
+                break;
+        } else {
+            int ascii_code = get_keystroke_ascii(0);
+            if (ascii_code == '@')
+                menu++;
+            else
+                break;
+        }
+
+        start = get_tsc();
+    }
+    return menu;
+}
+
 // Show IPL option menu.
 static void
 interactive_bootmenu(void)
@@ -400,19 +429,16 @@ interactive_bootmenu(void)
     while (get_keystroke(0) >= 0)
         ;
 
-    printf("Press F12 for boot menu.\n\n");
+    printf("Press F12 or ESC+@ for boot menu.\n\n");
 
     u32 menutime = romfile_loadint("etc/boot-menu-wait", DEFAULT_BOOTMENU_WAIT);
     enable_bootsplash();
-    int scan_code = get_keystroke(menutime);
-    disable_bootsplash();
-    if (scan_code != 0x86)
-        /* not F12 */
+    if (!wait_for_f12(menutime))
         return;
-
     while (get_keystroke(0) >= 0)
         ;
 
+    disable_bootsplash();
     printf("Select boot device:\n\n");
     wait_threads();
 
@@ -428,6 +454,7 @@ interactive_bootmenu(void)
     }
 
     // Get key press
+    int scan_code;
     for (;;) {
         scan_code = get_keystroke(1000);
         if (scan_code >= 1 && scan_code <= maxmenu+1)
