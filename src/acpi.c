@@ -454,6 +454,49 @@ build_notify(u8 *ssdt_ptr, const char *name, int skip, int count,
     return ssdt_ptr;
 }
 
+static u8*
+build_name(u8 *ssdt_ptr, const char *name)
+{
+    *(ssdt_ptr++) = 0x08; // NameOp
+    memcpy(ssdt_ptr, name, 4);
+    return ssdt_ptr + 4;
+}
+
+static u8*
+build_package(u8 *ssdt_ptr, int length, int entries, int lenBytes)
+{
+    *(ssdt_ptr++) = 0x12; // PackageOp
+    ssdt_ptr = encodeLen(ssdt_ptr, lenBytes+1+(length*entries), lenBytes);
+    *(ssdt_ptr++) = entries;
+    return ssdt_ptr;
+}
+
+static u8*
+build_scope(u8 *ssdt_ptr, const char *name, int length, int lenBytes)
+{
+    *(ssdt_ptr++) = 0x10; // ScopeOp
+    ssdt_ptr = encodeLen(ssdt_ptr, length, lenBytes);
+    memcpy(ssdt_ptr, name, 4);
+    return ssdt_ptr + 4;
+}
+
+static u8*
+build_opregion(u8 *ssdt_ptr, const char *name, void *base, u32 size)
+{
+    *(ssdt_ptr++) = 0x5B; // ExtOpPrefix
+    *(ssdt_ptr++) = 0x80; // OpRegionOp
+    memcpy(ssdt_ptr, name, 4);
+    ssdt_ptr += 4;
+    *(ssdt_ptr++) = 0x00; // SystemMemory
+    *(ssdt_ptr++) = 0x0C; // DWordPrefix
+    memcpy(ssdt_ptr, &base, 4);
+    ssdt_ptr += 4;
+    *(ssdt_ptr++) = 0x0C; // DWordPrefix
+    memcpy(ssdt_ptr, &size, 4);
+    ssdt_ptr += 4;
+    return ssdt_ptr;
+}
+
 static void patch_pcihp(int slot, u8 *ssdt_ptr, u32 eject)
 {
     ssdt_ptr[PCIHP_OFFSET_HEX] = getHex(slot >> 4);
@@ -508,12 +551,7 @@ build_ssdt(void)
     ssdt_ptr += sizeof(ssdp_susp_aml);
 
     // build Scope(_SB_) header
-    *(ssdt_ptr++) = 0x10; // ScopeOp
-    ssdt_ptr = encodeLen(ssdt_ptr, length - (ssdt_ptr - ssdt), 3);
-    *(ssdt_ptr++) = '_';
-    *(ssdt_ptr++) = 'S';
-    *(ssdt_ptr++) = 'B';
-    *(ssdt_ptr++) = '_';
+    ssdt_ptr = build_scope(ssdt_ptr, "_SB_", length - (ssdt_ptr - ssdt), 3);
 
     // build Processor object for each processor
     int i;
@@ -531,14 +569,8 @@ build_ssdt(void)
     ssdt_ptr = build_notify(ssdt_ptr, "NTFY", 0, acpi_cpus, "CP00", 2);
 
     // build "Name(CPON, Package() { One, One, ..., Zero, Zero, ... })"
-    *(ssdt_ptr++) = 0x08; // NameOp
-    *(ssdt_ptr++) = 'C';
-    *(ssdt_ptr++) = 'P';
-    *(ssdt_ptr++) = 'O';
-    *(ssdt_ptr++) = 'N';
-    *(ssdt_ptr++) = 0x12; // PackageOp
-    ssdt_ptr = encodeLen(ssdt_ptr, 2+1+(1*acpi_cpus), 2);
-    *(ssdt_ptr++) = acpi_cpus;
+    ssdt_ptr = build_name(ssdt_ptr, "CPON");
+    ssdt_ptr = build_package(ssdt_ptr, 1, acpi_cpus, 2);
     for (i=0; i<acpi_cpus; i++)
         *(ssdt_ptr++) = (apic_id_is_present(i)) ? 0x01 : 0x00;
 
@@ -553,27 +585,10 @@ build_ssdt(void)
     bfld->p1l = pcimem64_end - pcimem64_start;
 
     // build "OperationRegion(BDAT, SystemMemory, 0x12345678, 0x87654321)"
-    *(ssdt_ptr++) = 0x5B; // ExtOpPrefix
-    *(ssdt_ptr++) = 0x80; // OpRegionOp
-    *(ssdt_ptr++) = 'B';
-    *(ssdt_ptr++) = 'D';
-    *(ssdt_ptr++) = 'A';
-    *(ssdt_ptr++) = 'T';
-    *(ssdt_ptr++) = 0x00; // SystemMemory
-    *(ssdt_ptr++) = 0x0C; // DWordPrefix
-    *(u32*)ssdt_ptr = (u32)bfld;
-    ssdt_ptr += 4;
-    *(ssdt_ptr++) = 0x0C; // DWordPrefix
-    *(u32*)ssdt_ptr = sizeof(struct bfld);
-    ssdt_ptr += 4;
+    ssdt_ptr = build_opregion(ssdt_ptr, "BDAT", bfld, sizeof(struct bfld));
 
     // build Scope(PCI0) opcode
-    *(ssdt_ptr++) = 0x10; // ScopeOp
-    ssdt_ptr = encodeLen(ssdt_ptr, length - (ssdt_ptr - ssdt), 3);
-    *(ssdt_ptr++) = 'P';
-    *(ssdt_ptr++) = 'C';
-    *(ssdt_ptr++) = 'I';
-    *(ssdt_ptr++) = '0';
+    ssdt_ptr = build_scope(ssdt_ptr, "PCI0", length - (ssdt_ptr - ssdt), 3);
 
     // build Device object for each slot
     u32 rmvc_pcrm = inl(PCI_RMV_BASE);
