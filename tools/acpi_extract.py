@@ -331,6 +331,6 @@ for array in output.keys():
     odata = []
     for value in output[array]:
         odata.append("0x%x" % value)
-    sys.stdout.write("static unsigned %s %s[] = {\n" % (otype, array))
+    sys.stdout.write("static const unsigned %s %s[] = {\n" % (otype, array))
     sys.stdout.write(",\n".join(odata))
     sys.stdout.write('\n};\n');
