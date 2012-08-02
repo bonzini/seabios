@@ -483,8 +483,8 @@ build_ssdt(void)
                   + (6+2+1+(1*acpi_cpus))                   // CPON
                   + 17                                      // BDAT
                   + (1+3+4)                                 // Scope(PCI0)
-                  + ((PCI_SLOTS - 1) * PCIHP_SIZEOF)        // slots
-                  + (1+2+5+(12*(PCI_SLOTS - 1))));          // PCNT
+                  + ((PCI_SLOTS - 3) * PCIHP_SIZEOF)        // slots
+                  + (1+2+5+(12*(PCI_SLOTS - 3))));          // PCNT
     u8 *ssdt = malloc_high(length);
     if (! ssdt) {
         warn_noalloc();
@@ -577,14 +577,14 @@ build_ssdt(void)
 
     // build Device object for each slot
     u32 rmvc_pcrm = inl(PCI_RMV_BASE);
-    for (i=1; i<PCI_SLOTS; i++) {
+    for (i=3; i<PCI_SLOTS; i++) {
         u32 eject = rmvc_pcrm & (0x1 << i);
         memcpy(ssdt_ptr, PCIHP_AML, PCIHP_SIZEOF);
         patch_pcihp(i, ssdt_ptr, eject != 0);
         ssdt_ptr += PCIHP_SIZEOF;
     }
 
-    ssdt_ptr = build_notify(ssdt_ptr, "PCNT", 1, PCI_SLOTS, "S00_", 1);
+    ssdt_ptr = build_notify(ssdt_ptr, "PCNT", 3, PCI_SLOTS, "S00_", 1);
 
     build_header((void*)ssdt, SSDT_SIGNATURE, ssdt_ptr - ssdt, 1);
 

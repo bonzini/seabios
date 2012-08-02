@@ -290,6 +290,7 @@ DefinitionBlock (
     Scope(\_SB.PCI0) {
         Device (VGA) {
                  Name (_ADR, 0x00020000)
+                 Name (_SUN, 0x02)
                  OperationRegion(PCIC, PCI_Config, Zero, 0x4)
                  Field(PCIC, DWordAcc, NoLock, Preserve) {
                          VEND, 32
@@ -321,6 +322,7 @@ DefinitionBlock (
     Scope(\_SB.PCI0) {
         Device (ISA) {
             Name (_ADR, 0x00010000)
+            Name (_SUN, 0x01)
 
             /* PIIX PCI to ISA irq remapping */
             OperationRegion (P40C, PCI_Config, 0x60, 0x04)
