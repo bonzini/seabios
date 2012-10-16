@@ -283,6 +283,7 @@ build_fadt(struct pci_device *pci)
                         by fill_dsdt() */
     fadt->model = 1;
     fadt->reserved1 = 0;
+    fadt->century = 0x32;
     int pm_sci_int = pci_config_readb(pci->bdf, PCI_INTERRUPT_LINE);
     fadt->sci_int = cpu_to_le16(pm_sci_int);
     fadt->smi_cmd = cpu_to_le32(PORT_SMI_CMD);
