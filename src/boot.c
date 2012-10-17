@@ -10,6 +10,7 @@
 #include "config.h" // CONFIG_*
 #include "fw/paravirt.h" // qemu_cfg_show_boot_menu
 #include "hw/pci.h" // pci_bdf_to_*
+#include "hw/pci_ids.h" // pci_bdf_to_*
 #include "hw/rtc.h" // rtc_read
 #include "hw/usb.h" // struct usbdevice_s
 #include "list.h" // hlist_node
@@ -356,7 +357,8 @@ void
 boot_add_bev(u16 seg, u16 bev, u16 desc, u16 class, int prio)
 {
     class &= 0xF;
-    bootentry_add(IPL_TYPE_BEV | class, defPrio(prio, DefaultBEVPrio)
+    int def_prio = class == PCI_BASE_CLASS_STORAGE ? DefaultHDPrio : DefaultBEVPrio;
+    bootentry_add(IPL_TYPE_BEV | class, defPrio(prio, def_prio)
                   , SEGOFF(seg, bev).segoff
                   , desc ? MAKE_FLATPTR(seg, desc) : "Unknown");
     DefaultBEVPrio = DEFAULT_PRIO;
