@@ -299,13 +299,14 @@ struct bootentry_s {
 };
 static struct hlist_head BootList VARVERIFY32INIT;
 
-#define IPL_TYPE_FLOPPY      0x01
-#define IPL_TYPE_HARDDISK    0x02
-#define IPL_TYPE_CDROM       0x03
-#define IPL_TYPE_CBFS        0x20
-#define IPL_TYPE_BEV         0x80
-#define IPL_TYPE_BCV         0x81
+#define IPL_TYPE_FLOPPY      0x10
+#define IPL_TYPE_HARDDISK    0x20
+#define IPL_TYPE_CDROM       0x30
+#define IPL_TYPE_CBFS        0x40
+#define IPL_TYPE_BEV         0x50
+#define IPL_TYPE_BCV         0x60
 #define IPL_TYPE_HALT        0xf0
+#define IPL_TYPE_MASK        0xf0
 
 static void
 bootentry_add(int type, int prio, u32 data, const char *desc)
@@ -587,7 +588,7 @@ bcv_prepboot(void)
     // Map drives and populate BEV list
     struct bootentry_s *pos;
     hlist_for_each_entry(pos, &BootList, node) {
-        switch (pos->type) {
+        switch (pos->type & IPL_TYPE_MASK) {
         case IPL_TYPE_BCV:
             call_bcv(pos->vector.seg, pos->vector.offset);
             add_bev(IPL_TYPE_HARDDISK, 0);
@@ -746,7 +747,7 @@ do_boot(int seq_nr)
 
     // Boot the given BEV type.
     struct bev_s *ie = &BEV[seq_nr];
-    switch (ie->type) {
+    switch (ie->type & IPL_TYPE_MASK) {
     case IPL_TYPE_FLOPPY:
         printf("Booting from Floppy...\n");
         boot_disk(0x00, CheckFloppySig);
