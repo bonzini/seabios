@@ -353,9 +353,10 @@ static inline int defPrio(int priority, int defaultprio) {
 
 // Add a BEV vector for a given pnp compatible option rom.
 void
-boot_add_bev(u16 seg, u16 bev, u16 desc, int prio)
+boot_add_bev(u16 seg, u16 bev, u16 desc, u16 class, int prio)
 {
-    bootentry_add(IPL_TYPE_BEV, defPrio(prio, DefaultBEVPrio)
+    class &= 0xF;
+    bootentry_add(IPL_TYPE_BEV | class, defPrio(prio, DefaultBEVPrio)
                   , SEGOFF(seg, bev).segoff
                   , desc ? MAKE_FLATPTR(seg, desc) : "Unknown");
     DefaultBEVPrio = DEFAULT_PRIO;
@@ -363,9 +364,10 @@ boot_add_bev(u16 seg, u16 bev, u16 desc, int prio)
 
 // Add a bcv entry for an expansion card harddrive or legacy option rom
 void
-boot_add_bcv(u16 seg, u16 ip, u16 desc, int prio)
+boot_add_bcv(u16 seg, u16 ip, u16 desc, u16 class, int prio)
 {
-    bootentry_add(IPL_TYPE_BCV, defPrio(prio, DefaultHDPrio)
+    class &= 0xF;
+    bootentry_add(IPL_TYPE_BCV | class, defPrio(prio, DefaultHDPrio)
                   , SEGOFF(seg, ip).segoff
                   , desc ? MAKE_FLATPTR(seg, desc) : "Legacy option rom");
 }

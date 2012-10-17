@@ -392,18 +392,20 @@ optionrom_setup(void)
         if (! pnp) {
             // Legacy rom.
             boot_add_bcv(FLATPTR_TO_SEG(rom), OPTION_ROM_INITVECTOR, 0
-                         , getRomPriority(sources, rom, 0));
+                         , 0, getRomPriority(sources, rom, 0));
             continue;
         }
         // PnP rom - check for BEV and BCV boot capabilities.
+        // Note that the PNP type_lo field is the same as a PCI class
+        // (http://download.microsoft.com/download/1/6/1/161ba512-40e2-4cc9-843a-923143f3456c/devids.txt)
         int instance = 0;
         while (pnp) {
             if (pnp->bev)
                 boot_add_bev(FLATPTR_TO_SEG(rom), pnp->bev, pnp->productname
-                             , getRomPriority(sources, rom, instance++));
+                             , pnp->type_lo, getRomPriority(sources, rom, instance++));
             else if (pnp->bcv)
                 boot_add_bcv(FLATPTR_TO_SEG(rom), pnp->bcv, pnp->productname
-                             , getRomPriority(sources, rom, instance++));
+                             , pnp->type_lo, getRomPriority(sources, rom, instance++));
             else
                 break;
             pnp = get_pnp_next(rom, pnp);
