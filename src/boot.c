@@ -422,7 +422,21 @@ get_raw_keystroke(void)
     memset(&br, 0, sizeof(br));
     br.flags = F_IF;
     call16_int(0x16, &br);
-    return br.ah;
+    return br.ax;
+}
+
+// Read a keystroke - waiting up to 'msec' milliseconds.
+static int
+get_keystroke_ascii(int msec)
+{
+    u32 end = irqtimer_calc(msec);
+    for (;;) {
+        if (check_for_keystroke())
+            return get_raw_keystroke() & 255;
+        if (irqtimer_check(end))
+            return -1;
+        yield_toirq();
+    }
 }
 
 // Read a keystroke - waiting up to 'msec' milliseconds.
@@ -432,7 +446,7 @@ get_keystroke(int msec)
     u32 end = irqtimer_calc(msec);
     for (;;) {
         if (check_for_keystroke())
-            return get_raw_keystroke();
+            return get_raw_keystroke() >> 8;
         if (irqtimer_check(end))
             return -1;
         yield_toirq();
@@ -445,6 +459,35 @@ get_keystroke(int msec)
  ****************************************************************/
 
 #define DEFAULT_BOOTMENU_WAIT 2500
+
+static int
+get_bootmenu_keystroke(bool esc_sequence)
+{
+    u32 menutime = romfile_loadint("etc/boot-menu-wait", DEFAULT_BOOTMENU_WAIT);
+    int scan_code = get_keystroke(menutime);
+    if (esc_sequence && scan_code == 0x01) {
+        while (get_keystroke(0) >= 0)
+            ;
+        int ascii = get_keystroke_ascii(menutime * 2);
+        switch (ascii) {
+        case '1' ... '9':
+            scan_code = 0x3a + ascii - '0';
+            break;
+        case '0':
+            scan_code = 0x3a + 10;
+            break;
+        case '!':
+            scan_code = 0x85;
+            break;
+        case '@':
+            scan_code = 0x86;
+            break;
+        default:
+            break;
+        }
+    }
+    return scan_code;
+}
 
 // Show IPL option menu.
 void
@@ -460,12 +503,11 @@ interactive_bootmenu(void)
 
     char *bootmsg = romfile_loadfile("etc/boot-menu-message", NULL);
     int menukey = romfile_loadint("etc/boot-menu-key", 0x86);
-    printf("%s", bootmsg ?: "\nPress F12 for boot menu.\n\n");
+    printf("%s", bootmsg ?: "\nPress ESC+@ or F12 for boot menu.\n\n");
     free(bootmsg);
 
-    u32 menutime = romfile_loadint("etc/boot-menu-wait", DEFAULT_BOOTMENU_WAIT);
     enable_bootsplash();
-    int scan_code = get_keystroke(menutime);
+    int scan_code = get_bootmenu_keystroke(menukey != 1);
     disable_bootsplash();
     if (scan_code != menukey)
         return;
