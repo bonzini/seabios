@@ -308,6 +308,7 @@ static struct hlist_head BootList VARVERIFY32INIT;
 #define IPL_TYPE_BCV         0x60
 #define IPL_TYPE_HALT        0xf0
 #define IPL_TYPE_MASK        0xf0
+#define IPL_TYPE_CLASS       0x0f
 
 static void
 bootentry_add(int type, int prio, u32 data, const char *desc)
@@ -494,11 +495,22 @@ get_bootmenu_keystroke(bool esc_sequence)
     return scan_code;
 }
 
+static inline void
+hlist_add_tail(struct hlist_node *n, struct hlist_head *h,
+               struct hlist_node **ptail)
+{
+    struct hlist_node *tail = *ptail;
+    struct hlist_node **pprev = tail ? &tail->next : &h->first;
+    hlist_add(n, pprev);
+    *ptail = n;
+}
+
 // Show IPL option menu.
 void
 interactive_bootmenu(void)
 {
     // XXX - show available drives?
+    struct bootentry_s *pos;
 
     if (! CONFIG_BOOTMENU || !romfile_loadint("etc/show-boot-menu", 1))
         return;
@@ -507,18 +519,67 @@ interactive_bootmenu(void)
         ;
 
     char *bootmsg = romfile_loadfile("etc/boot-menu-message", NULL);
-    int menukey = romfile_loadint("etc/boot-menu-key", 0x86);
-    printf("%s", bootmsg ?: "\nPress ESC+@ or F12 for boot menu.\n\n");
+    int menukey = romfile_loadint("etc/boot-menu-key", 0x85);
+    int netkey = romfile_loadint("etc/boot-menu-key-net", 0x86);
+
+    if (bootmsg) {
+        printf("%s", bootmsg);
+    } else {
+        printf("\nPress ESC+! or F11 for boot menu.\n");
+        if (netkey) {
+            int found = 0;
+            hlist_for_each_entry(pos, &BootList, node)
+                if ((pos->type & IPL_TYPE_CLASS) == PCI_BASE_CLASS_NETWORK) {
+                    found = 1;
+                    break;
+                }
+            if (found)
+                printf("Press ESC+@ or F12 for network boot.\n");
+            else
+                netkey = 0;
+        }
+        printf("\n");
+    }
+
     free(bootmsg);
 
     enable_bootsplash();
-    int scan_code = get_bootmenu_keystroke(menukey != 1);
+    int scan_code = get_bootmenu_keystroke(menukey != 1 && netkey != 1);
     disable_bootsplash();
 
     while (get_keystroke(0) >= 0)
         ;
 
-    if (scan_code == menukey) {
+    if (scan_code == netkey) {
+        wait_threads();
+
+        // Split list in two parts.  Network devices remain in BootList,
+        // others are moved to "other".
+        struct hlist_head head[2] = { {NULL}, {NULL} };
+        struct hlist_node *last[2] = { NULL, NULL };
+
+        struct hlist_node *next;
+        hlist_for_each_entry_safe(pos, next, &BootList, node) {
+            int dest;
+            if ((pos->type & IPL_TYPE_CLASS) == PCI_BASE_CLASS_NETWORK) {
+                pos->priority = 0;
+                dest = 0;
+            } else
+                dest = 1;
+
+            hlist_del(&pos->node);
+            hlist_add_tail(&pos->node, &head[dest], &last[dest]);
+        }
+
+        // Add all non-network devices after network devices
+        if (head[1].first) {
+            struct hlist_node **pprev = last[0] ? &last[0]->next : &head[0].first;
+            head[1].first->pprev = pprev;
+            *pprev = head[1].first;
+        }
+
+        BootList = head[0];
+    } else if (scan_code == menukey) {
         printf("Select boot device:\n\n");
         wait_threads();
 
