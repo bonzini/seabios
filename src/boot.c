@@ -514,45 +514,45 @@ interactive_bootmenu(void)
     enable_bootsplash();
     int scan_code = get_bootmenu_keystroke(menukey != 1);
     disable_bootsplash();
-    if (scan_code != menukey)
-        return;
 
     while (get_keystroke(0) >= 0)
         ;
 
-    printf("Select boot device:\n\n");
-    wait_threads();
+    if (scan_code == menukey) {
+        printf("Select boot device:\n\n");
+        wait_threads();
 
-    // Show menu items
-    int maxmenu = 0;
-    struct bootentry_s *pos;
-    hlist_for_each_entry(pos, &BootList, node) {
-        char desc[60];
-        maxmenu++;
-        printf("%d. %s\n", maxmenu
-               , strtcpy(desc, pos->description, ARRAY_SIZE(desc)));
-    }
+        // Show menu items
+        int maxmenu = 0;
+        struct bootentry_s *pos;
+        hlist_for_each_entry(pos, &BootList, node) {
+            char desc[60];
+            maxmenu++;
+            printf("%d. %s\n", maxmenu
+                   , strtcpy(desc, pos->description, ARRAY_SIZE(desc)));
+        }
 
-    // Get key press
-    for (;;) {
-        scan_code = get_keystroke(1000);
-        if (scan_code >= 1 && scan_code <= maxmenu+1)
-            break;
-    }
-    printf("\n");
-    if (scan_code == 0x01)
-        // ESC
-        return;
+        // Get key press
+        for (;;) {
+            scan_code = get_keystroke(1000);
+            if (scan_code >= 1 && scan_code <= maxmenu+1)
+                break;
+        }
+        printf("\n");
+        if (scan_code == 0x01)
+            // ESC
+            return;
 
-    // Find entry and make top priority.
-    int choice = scan_code - 1;
-    hlist_for_each_entry(pos, &BootList, node) {
-        if (! --choice)
-            break;
+        // Find entry and make top priority.
+        int choice = scan_code - 1;
+        hlist_for_each_entry(pos, &BootList, node) {
+            if (! --choice)
+                break;
+        }
+        hlist_del(&pos->node);
+        pos->priority = 0;
+        hlist_add_head(&pos->node, &BootList);
     }
-    hlist_del(&pos->node);
-    pos->priority = 0;
-    hlist_add_head(&pos->node, &BootList);
 }
 
 // BEV (Boot Execution Vector) list
