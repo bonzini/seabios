@@ -169,9 +169,11 @@ static void piix4_apmc_smm_setup(int isabdf, int i440_bdf)
         return;
 
     /* enable the SMM memory window */
-    pci_config_writeb(i440_bdf, I440FX_SMRAM, 0x02 | 0x48);
+    if ((pci_config_readb(i440_bdf, I440FX_SMRAM) & 0x10) == 0) {
+        pci_config_writeb(i440_bdf, I440FX_SMRAM, 0x02 | 0x48);
 
-    smm_save_and_copy();
+        smm_save_and_copy();
+    }
 
     /* enable SMI generation when writing to the APMC register */
     pci_config_writel(isabdf, PIIX_DEVACTB, value | PIIX_DEVACTB_APMC_EN);
@@ -182,8 +184,8 @@ static void piix4_apmc_smm_setup(int isabdf, int i440_bdf)
 
     smm_relocate_and_restore();
 
-    /* close the SMM memory window and enable normal SMM */
-    pci_config_writeb(i440_bdf, I440FX_SMRAM, 0x02 | 0x08);
+    /* close the SMM memory window, enable normal SMM, lock SMRAM */
+    pci_config_writeb(i440_bdf, I440FX_SMRAM, 0x02 | 0x18);
 }
 
 /* PCI_VENDOR_ID_INTEL && PCI_DEVICE_ID_INTEL_ICH9_LPC */
@@ -198,9 +200,11 @@ void ich9_lpc_apmc_smm_setup(int isabdf, int mch_bdf)
     pci_config_writeb(mch_bdf, Q35_HOST_BRIDGE_ESMRAM, 0x80);
 
     /* enable the SMM memory window */
-    pci_config_writeb(mch_bdf, Q35_HOST_BRIDGE_SMRAM, 0x02 | 0x48);
+    if ((pci_config_readb(mch_bdf, Q35_HOST_BRIDGE_SMRAM) & 0x10) == 0) {
+        pci_config_writeb(mch_bdf, Q35_HOST_BRIDGE_SMRAM, 0x02 | 0x48);
 
-    smm_save_and_copy();
+        smm_save_and_copy();
+    }
 
     /* enable SMI generation when writing to the APMC register */
     outl(value | ICH9_PMIO_SMI_EN_APMC_EN | ICH9_PMIO_SMI_EN_GLB_SMI_EN,
@@ -213,8 +217,8 @@ void ich9_lpc_apmc_smm_setup(int isabdf, int mch_bdf)
 
     smm_relocate_and_restore();
 
-    /* close the SMM memory window and enable normal SMM */
-    pci_config_writeb(mch_bdf, Q35_HOST_BRIDGE_SMRAM, 0x02 | 0x08);
+    /* close the SMM memory window, enable normal SMM, lock SMRAM */
+    pci_config_writeb(mch_bdf, Q35_HOST_BRIDGE_SMRAM, 0x02 | 0x18);
 }
 
 static int SMMISADeviceBDF = -1, SMMPMDeviceBDF = -1;
