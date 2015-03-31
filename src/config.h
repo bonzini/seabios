@@ -40,7 +40,7 @@
 // 32KB for shadow ram copying (works around emulator deficiencies)
 #define BUILD_BIOS_TMP_ADDR       0x30000
 #define BUILD_SMM_INIT_ADDR       0x30000
-#define BUILD_SMM_ADDR            0xa0000
+#define BUILD_SMM_ADDR            0xfeda0000
 
 #define BUILD_PCIMEM_START        0xe0000000
 #define BUILD_PCIMEM_END          0xfec00000    /* IOAPIC is mapped at */

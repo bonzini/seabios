@@ -57,10 +57,10 @@ handle_smi(u16 cs)
     if (!CONFIG_USE_SMM)
         return;
     u8 cmd = inb(PORT_SMI_CMD);
-    struct smm_layout *smm = MAKE_FLATPTR(cs, 0);
-    dprintf(DEBUG_HDL_smi, "handle_smi cmd=%x smbase=%p\n", cmd, smm);
+    dprintf(DEBUG_HDL_smi, "handle_smi cmd=%x cs=%p\n", cmd, cs);
 
-    if (smm == (void*)BUILD_SMM_INIT_ADDR) {
+    if (cs == 0x3000) {
+        struct smm_layout *smm = MAKE_FLATPTR(cs, 0);
         // relocate SMBASE to 0xa0000
         if (smm->cpu.i32.smm_rev == SMM_REV_I32) {
             smm->cpu.i32.smm_base = BUILD_SMM_ADDR;
@@ -85,6 +85,7 @@ handle_smi(u16 cs)
     }
 
     if (CONFIG_CALL32_SMM && cmd == CALL32SMM_CMDID) {
+        struct smm_layout *smm = (void *)BUILD_SMM_ADDR;
         if (smm->cpu.i32.smm_rev == SMM_REV_I32) {
             u32 regs[8];
             memcpy(regs, &smm->cpu.i32.eax, sizeof(regs));
@@ -192,6 +193,9 @@ void ich9_lpc_apmc_smm_setup(int isabdf, int mch_bdf)
     u32 value = inl(acpi_pm_base + ICH9_PMIO_SMI_EN);
     if (value & ICH9_PMIO_SMI_EN_APMC_EN)
         return;
+
+    /* enable H_SMRAM */
+    pci_config_writeb(mch_bdf, Q35_HOST_BRIDGE_ESMRAM, 0x80);
 
     /* enable the SMM memory window */
     pci_config_writeb(mch_bdf, Q35_HOST_BRIDGE_SMRAM, 0x02 | 0x48);
