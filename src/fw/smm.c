@@ -217,8 +217,10 @@ void ich9_lpc_apmc_smm_setup(int isabdf, int mch_bdf)
 
     smm_relocate_and_restore();
 
+#if 0
     /* close the SMM memory window, enable normal SMM, lock SMRAM */
     pci_config_writeb(mch_bdf, Q35_HOST_BRIDGE_SMRAM, 0x02 | 0x18);
+#endif
 }
 
 static int SMMISADeviceBDF = -1, SMMPMDeviceBDF = -1;
